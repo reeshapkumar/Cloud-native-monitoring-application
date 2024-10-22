@@ -1,224 +1,346 @@
-# **Cloud Native Resource Monitoring Python App on K8s!**
+# Cloud Native Monitoring Application
 
-## Things you will Learn 🤯
+Creating a Cloud Native Monitoring Application involves building a system that collects, processes, and visualizes metrics from various services running in a cloud environment. Below, I’ll outline the steps to create a simple monitoring application using the MERN stack (MongoDB, Express.js, React, Node.js), integrated with a monitoring tool like Prometheus and Grafana.
 
-1. Python and How to create Monitoring Application in Python using Flask and psutil
-2. How to run a Python App locally.
-3. Learn Docker and How to containerize a Python application
-    1. Creating Dockerfile
-    2. Building DockerImage
-    3. Running Docker Container
-    4. Docker Commands
-4. Create ECR repository using Python Boto3 and pushing Docker Image to ECR
-5. Learn Kubernetes and Create EKS cluster and Nodegroups
-6. Create Kubernetes Deployments and Services using Python!
+**Project Structure**
+Here’s a suggested project structure:
 
-# **Youtube Video for step by step Demonstration!**
+``java
+Copy code
+cloud-native-monitoring/
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── server.js
+│   └── .env
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── src/
+│   └── public/
+├── docker-compose.yml
+└── prometheus/
+    ├── prometheus.yml
+``
 
-[![Video Tutorial](https://img.youtube.com/vi/kBWCsHEcWnc/0.jpg)](https://youtu.be/kBWCsHEcWnc)
+**Step 1:** Set Up the Backend
+**A. Create the Backend Directory Create the backend directory and navigate to it:**
 
+``bash
+Copy code
+mkdir backend
+cd backend
+Initialize a new Node.js project:
+``
 
-## **Prerequisites** !
+``bash
+Copy code
+npm init -y
+Install necessary dependencies:
+``
 
-(Things to have before starting the projects)
+``bash
+Copy code
+npm install express mongoose dotenv cors body-parser
+Create the server.js file:
+``
 
-- [x]  AWS Account.
-- [x]  Programmatic access and AWS configured with CLI.
-- [x]  Python3 Installed.
-- [x]  Docker and Kubectl installed.
-- [x]  Code editor (Vscode)
+``javascript
+Copy code
+// backend/server.js
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+require('dotenv').config();
 
-# ✨Let’s Start the Project ✨
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-## **Part 1: Deploying the Flask application locally**
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
 
-### **Step 1: Clone the code**
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
-Clone the code from the repository:
+// Metrics Schema
+const metricSchema = new mongoose.Schema({
+    name: String,
+    value: Number,
+    timestamp: { type: Date, default: Date.now }
+});
 
-```
-git clone <repository_url>
-```
+const Metric = mongoose.model('Metric', metricSchema);
 
-### **Step 2: Install dependencies**
+// Routes
+app.get('/metrics', async (req, res) => {
+    const metrics = await Metric.find();
+    res.json(metrics);
+});
 
-The application uses the **`psutil`** and **`Flask`, Plotly, boto3** libraries. Install them using pip:
+app.post('/metrics', async (req, res) => {
+    const newMetric = new Metric(req.body);
+    await newMetric.save();
+    res.status(201).json(newMetric);
+});
 
-```
-pip3 install -r requirements.txt
-```
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+``
 
-### **Step 3: Run the application**
+**Create a .env file to store environment variables:**
 
-To run the application, navigate to the root directory of the project and execute the following command:
+``bash
+Copy code
+MONGO_URI=mongodb://mongo:27017/monitoring
+``
 
-```
-python3 app.py
-```
+**B. Create the Dockerfile for Backend**
 
-This will start the Flask server on **`localhost:5000`**. Navigate to [http://localhost:5000/](http://localhost:5000/) on your browser to access the application.
+``dockerfile
+Copy code
+FROM node:14
 
-## **Part 2: Dockerizing the Flask application**
+WORKDIR /usr/src/app
 
-### **Step 1: Create a Dockerfile**
+COPY package*.json ./
+RUN npm install
 
-Create a **`Dockerfile`** in the root directory of the project with the following contents:
-
-```
-# Use the official Python image as the base image
-FROM python:3.9-slim-buster
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy the requirements file to the working directory
-COPY requirements.txt .
-
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-# Copy the application code to the working directory
 COPY . .
 
-# Set the environment variables for the Flask app
-ENV FLASK_RUN_HOST=0.0.0.0
-
-# Expose the port on which the Flask app will run
 EXPOSE 5000
 
-# Start the Flask app when the container is run
-CMD ["flask", "run"]
-```
+CMD ["node", "server.js"]
+``
 
-### **Step 2: Build the Docker image**
+**Step 2: Set Up the Frontend**
 
-To build the Docker image, execute the following command:
+**A. Create the Frontend Directory Create the frontend directory and navigate to it:**
 
-```
-docker build -t <image_name> .
-```
+``bash
+Copy code
+mkdir ../frontend
+cd ../frontend
+Create a new React app:
+``
 
-### **Step 3: Run the Docker container**
+``bash
+Copy code
+npx create-react-app .
+Modify the package.json to include a proxy for API calls:
+``
 
-To run the Docker container, execute the following command:
+``json
+Copy code
+// frontend/package.json
+{
+  // ... other configurations
+  "proxy": "http://backend:5000"
+}
+``
 
-```
-docker run -p 5000:5000 <image_name>
-```
+**Create a simple Monitoring Dashboard in src/App.js:**
 
-This will start the Flask server in a Docker container on **`localhost:5000`**. Navigate to [http://localhost:5000/](http://localhost:5000/) on your browser to access the application.
+``javascript
+Copy code
+// frontend/src/App.js
+import React, { useEffect, useState } from 'react';
 
-## **Part 3: Pushing the Docker image to ECR**
+function App() {
+  const [metrics, setMetrics] = useState([]);
+  const [metricName, setMetricName] = useState('');
+  const [metricValue, setMetricValue] = useState('');
 
-### **Step 1: Create an ECR repository**
+  useEffect(() => {
+    fetch('/metrics')
+      .then(response => response.json())
+      .then(data => setMetrics(data));
+  }, []);
 
-Create an ECR repository using Python:
+  const addMetric = async () => {
+    const response = await fetch('/metrics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: metricName, value: parseFloat(metricValue) })
+    });
+    const newMetric = await response.json();
+    setMetrics([...metrics, newMetric]);
+    setMetricName('');
+    setMetricValue('');
+  };
 
-```
-import boto3
+  return (
+    <div>
+      <h1>Cloud Native Monitoring Dashboard</h1>
+      <input
+        type="text"
+        value={metricName}
+        onChange={e => setMetricName(e.target.value)}
+        placeholder="Metric Name"
+      />
+      <input
+        type="number"
+        value={metricValue}
+        onChange={e => setMetricValue(e.target.value)}
+        placeholder="Metric Value"
+      />
+      <button onClick={addMetric}>Add Metric</button>
+      <ul>
+        {metrics.map(metric => (
+          <li key={metric._id}>
+            {metric.name}: {metric.value} (Timestamp: {new Date(metric.timestamp).toLocaleString()})
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
-# Create an ECR client
-ecr_client = boto3.client('ecr')
+export default App;
+``
 
-# Create a new ECR repository
-repository_name = 'my-ecr-repo'
-response = ecr_client.create_repository(repositoryName=repository_name)
+**B. Create the Dockerfile for Frontend** 
 
-# Print the repository URI
-repository_uri = response['repository']['repositoryUri']
-print(repository_uri)
-```
+``dockerfile
+Copy code
+FROM node:14 as build
 
-### **Step 2: Push the Docker image to ECR**
+WORKDIR /app
 
-Push the Docker image to ECR using the push commands on the console:
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-```
-docker push <ecr_repo_uri>:<tag>
-```
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+``
 
-## **Part 4: Creating an EKS cluster and deploying the app using Python**
+**Step 3: Set Up Prometheus and Grafana**
 
-### **Step 1: Create an EKS cluster**
+**A. Create Prometheus Configuration Create a prometheus directory and a prometheus.yml file inside it:**
 
-Create an EKS cluster and add node group
+``bash
+Copy code
+mkdir ../prometheus
+cd ../prometheus
+``
 
-### **Step 2: Create a node group**
+**Create the prometheus.yml configuration file:**
 
-Create a node group in the EKS cluster.
+``yaml
+Copy code
+global:
+  scrape_interval: 1m
 
-### **Step 3: Create deployment and service**
+scrape_configs:
+  - job_name: 'nodejs-backend'
+    static_configs:
+      - targets: ['backend:5000']
+``
 
-```jsx
-from kubernetes import client, config
+**Step 4: Set Up Docker Compose**
 
-# Load Kubernetes configuration
-config.load_kube_config()
+**A. Create the docker-compose.yml file**
 
-# Create a Kubernetes API client
-api_client = client.ApiClient()
+``yaml
+Copy code
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - mongo
 
-# Define the deployment
-deployment = client.V1Deployment(
-    metadata=client.V1ObjectMeta(name="my-flask-app"),
-    spec=client.V1DeploymentSpec(
-        replicas=1,
-        selector=client.V1LabelSelector(
-            match_labels={"app": "my-flask-app"}
-        ),
-        template=client.V1PodTemplateSpec(
-            metadata=client.V1ObjectMeta(
-                labels={"app": "my-flask-app"}
-            ),
-            spec=client.V1PodSpec(
-                containers=[
-                    client.V1Container(
-                        name="my-flask-container",
-                        image="568373317874.dkr.ecr.us-east-1.amazonaws.com/my-cloud-native-repo:latest",
-                        ports=[client.V1ContainerPort(container_port=5000)]
-                    )
-                ]
-            )
-        )
-    )
-)
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
 
-# Create the deployment
-api_instance = client.AppsV1Api(api_client)
-api_instance.create_namespaced_deployment(
-    namespace="default",
-    body=deployment
-)
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
 
-# Define the service
-service = client.V1Service(
-    metadata=client.V1ObjectMeta(name="my-flask-service"),
-    spec=client.V1ServiceSpec(
-        selector={"app": "my-flask-app"},
-        ports=[client.V1ServicePort(port=5000)]
-    )
-)
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
 
-# Create the service
-api_instance = client.CoreV1Api(api_client)
-api_instance.create_namespaced_service(
-    namespace="default",
-    body=service
-)
-```
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
 
-make sure to edit the name of the image on line 25 with your image Uri.
+volumes:
+  mongo-data:
+``
 
-- Once you run this file by running “python3 eks.py” deployment and service will be created.
-- Check by running following commands:
+**Step 5: Running the Application Navigate to the root of your project directory (where docker-compose.yml is located):**
 
-```jsx
-kubectl get deployment -n default (check deployments)
-kubectl get service -n default (check service)
-kubectl get pods -n default (to check the pods)
-```
+``bash
+Copy code
+cd cloud-native-monitoring
+Run Docker Compose:
+``
 
-Once your pod is up and running, run the port-forward to expose the service
+``bash
+Copy code
+docker-compose up --build
+Access the applications:
 
-```bash
-kubectl port-forward service/<service_name> 5000:5000
-```
+Frontend: http://localhost:3000
+Backend: http://localhost:5000 (API)
+Prometheus: http://localhost:9090
+Grafana: http://localhost:3001
+
+**Step 6: Setting Up Grafana
+Log in to Grafana:**
+
+The default username and password are both admin.
+Change the password when prompted.
+Add Prometheus as a data source:
+
+Go to Configuration (the gear icon) → Data Sources → Add Data Source → Choose Prometheus.
+Set the URL to http://prometheus:9090 and click Save & Test.
+Create a Dashboard:
+Create a new dashboard to visualize the metrics you are collecting.
+``
+
+**Step 7: Testing the Application**
+Open your browser and navigate to http://localhost:3000.
+You should see the Cloud Native Monitoring Dashboard where you can add and view metrics.
+Visit http://localhost:9090 to see Prometheus collecting metrics.
+Go to http://localhost:3001 to access Grafana and visualize your metrics.
+
+**Step 8: Enhancements**
+Once the basic application is running, consider adding:
+
+Alerting: Use Prometheus alerting rules to notify you when certain metrics exceed thresholds.
+Detailed dashboards in Grafana to visualize different metrics over time.
+Authentication: Secure your backend and Grafana with authentication mechanisms.
+Container Metrics: Collect metrics from the Docker containers themselves using cAdvisor.
+
+**Conclusion**
+You now have a simple Cloud Native Monitoring Application set up using the MERN stack along with Prometheus and Grafana. This project serves as a foundation to expand and implement more advanced features. Let me know if you have any questions or need further assistance!
