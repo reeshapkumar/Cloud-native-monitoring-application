@@ -6,7 +6,6 @@ Creating a Cloud Native Monitoring Application involves building a system that c
 Here’s a suggested project structure:
 
 ``java
-Copy code
 cloud-native-monitoring/
 ├── backend/
 │   ├── Dockerfile
@@ -23,30 +22,27 @@ cloud-native-monitoring/
     ├── prometheus.yml
 ``
 
-**Step 1:** Set Up the Backend
+**Step 1: Set Up the Backend**
+
 **A. Create the Backend Directory Create the backend directory and navigate to it:**
 
 ``bash
-Copy code
 mkdir backend
 cd backend
 Initialize a new Node.js project:
 ``
 
 ``bash
-Copy code
 npm init -y
 Install necessary dependencies:
 ``
 
 ``bash
-Copy code
 npm install express mongoose dotenv cors body-parser
 Create the server.js file:
 ``
 
 ``javascript
-Copy code
 // backend/server.js
 const express = require('express');
 const mongoose = require('mongoose');
@@ -96,14 +92,12 @@ app.listen(PORT, () => {
 **Create a .env file to store environment variables:**
 
 ``bash
-Copy code
 MONGO_URI=mongodb://mongo:27017/monitoring
 ``
 
 **B. Create the Dockerfile for Backend**
 
 ``dockerfile
-Copy code
 FROM node:14
 
 WORKDIR /usr/src/app
@@ -123,20 +117,17 @@ CMD ["node", "server.js"]
 **A. Create the Frontend Directory Create the frontend directory and navigate to it:**
 
 ``bash
-Copy code
 mkdir ../frontend
 cd ../frontend
 Create a new React app:
 ``
 
 ``bash
-Copy code
 npx create-react-app .
 Modify the package.json to include a proxy for API calls:
 ``
 
 ``json
-Copy code
 // frontend/package.json
 {
   // ... other configurations
@@ -147,7 +138,6 @@ Copy code
 **Create a simple Monitoring Dashboard in src/App.js:**
 
 ``javascript
-Copy code
 // frontend/src/App.js
 import React, { useEffect, useState } from 'react';
 
@@ -207,7 +197,6 @@ export default App;
 **B. Create the Dockerfile for Frontend** 
 
 ``dockerfile
-Copy code
 FROM node:14 as build
 
 WORKDIR /app
@@ -228,7 +217,6 @@ CMD ["nginx", "-g", "daemon off;"]
 **A. Create Prometheus Configuration Create a prometheus directory and a prometheus.yml file inside it:**
 
 ``bash
-Copy code
 mkdir ../prometheus
 cd ../prometheus
 ``
@@ -236,7 +224,6 @@ cd ../prometheus
 **Create the prometheus.yml configuration file:**
 
 ``yaml
-Copy code
 global:
   scrape_interval: 1m
 
@@ -251,7 +238,6 @@ scrape_configs:
 **A. Create the docker-compose.yml file**
 
 ``yaml
-Copy code
 version: '3.8'
 services:
   backend:
@@ -300,13 +286,11 @@ volumes:
 **Step 5: Running the Application Navigate to the root of your project directory (where docker-compose.yml is located):**
 
 ``bash
-Copy code
 cd cloud-native-monitoring
 Run Docker Compose:
 ``
 
 ``bash
-Copy code
 docker-compose up --build
 Access the applications:
 
@@ -314,25 +298,27 @@ Frontend: http://localhost:3000
 Backend: http://localhost:5000 (API)
 Prometheus: http://localhost:9090
 Grafana: http://localhost:3001
+``
 
-**Step 6: Setting Up Grafana
-Log in to Grafana:**
+**Step 6: Setting Up Grafana Log in to Grafana:**
 
 The default username and password are both admin.
 Change the password when prompted.
 Add Prometheus as a data source:
 
-Go to Configuration (the gear icon) → Data Sources → Add Data Source → Choose Prometheus.
+``Go to Configuration (the gear icon) → Data Sources → Add Data Source → Choose Prometheus.
 Set the URL to http://prometheus:9090 and click Save & Test.
 Create a Dashboard:
 Create a new dashboard to visualize the metrics you are collecting.
 ``
 
 **Step 7: Testing the Application**
-Open your browser and navigate to http://localhost:3000.
+
+``Open your browser and navigate to http://localhost:3000.
 You should see the Cloud Native Monitoring Dashboard where you can add and view metrics.
 Visit http://localhost:9090 to see Prometheus collecting metrics.
 Go to http://localhost:3001 to access Grafana and visualize your metrics.
+``
 
 **Step 8: Enhancements**
 Once the basic application is running, consider adding:
